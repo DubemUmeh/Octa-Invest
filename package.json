@@ -1,8 +1,7 @@
 {
-  "name": "my-frontend",
+  "name": "frontend",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://Valentine-Dimukeje.github.io/Octa-invest",
   "dependencies": {
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.6.4",
