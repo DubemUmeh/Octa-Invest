@@ -1,8 +1,10 @@
 import { API_BASE } from "./config";
 
 /**
- * authFetch wraps fetch with JWT + credentials support
- * Automatically retries with refresh token if access expired
+ * authFetch
+ * - JWT Authorization header only
+ * - Auto refresh on 401
+ * - No cookies (JWT != session auth)
  */
 export async function authFetch(path, options = {}) {
   const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
@@ -10,50 +12,57 @@ export async function authFetch(path, options = {}) {
   let access = localStorage.getItem("access");
   let refresh = localStorage.getItem("refresh");
 
-  // Include credentials for cookies + CORS
-  const init = {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-      ...(access ? { Authorization: `Bearer ${access}` } : {}),
-    },
-    credentials: "include",
+  const headers = {
+    ...(options.headers || {}),
+    ...(access ? { Authorization: `Bearer ${access}` } : {}),
   };
 
-  let res = await fetch(url, init);
+  // Only set JSON header if body is not FormData
+  if (!(options.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
 
-  // Retry with refresh token if 401
+  let res = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  // Access token expired → try refresh
   if (res.status === 401 && refresh) {
     const refreshRes = await fetch(`${API_BASE}/api/auth/token/refresh/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh }),
-      credentials: "include",
     });
 
-    if (refreshRes.ok) {
-      const data = await refreshRes.json();
-      access = data.access;
-      localStorage.setItem("access", access);
-
-      const retryInit = {
-        ...options,
-        headers: {
-          "Content-Type": "application/json",
-          ...(options.headers || {}),
-          Authorization: `Bearer ${access}`,
-        },
-        credentials: "include",
-      };
-
-      res = await fetch(url, retryInit);
-    } else {
+    if (!refreshRes.ok) {
       localStorage.removeItem("access");
       localStorage.removeItem("refresh");
       window.location.href = "/login";
-      throw new Error("Session expired. Please log in again.");
+      throw new Error("Session expired");
     }
+
+    const data = await refreshRes.json();
+
+    access = data.access;
+    if (data.refresh) {
+      localStorage.setItem("refresh", data.refresh);
+    }
+    localStorage.setItem("access", access);
+
+    const retryHeaders = {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${access}`,
+    };
+
+    if (!(options.body instanceof FormData)) {
+      retryHeaders["Content-Type"] = "application/json";
+    }
+
+    res = await fetch(url, {
+      ...options,
+      headers: retryHeaders,
+    });
   }
 
   return res;
