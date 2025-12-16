@@ -4,7 +4,7 @@ import { API_BASE } from "./config";
  * authFetch
  * - JWT Authorization header only
  * - Auto refresh on 401
- * - No cookies (JWT != session auth)
+ * - NO cookies
  */
 export async function authFetch(path, options = {}) {
   const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
@@ -17,7 +17,6 @@ export async function authFetch(path, options = {}) {
     ...(access ? { Authorization: `Bearer ${access}` } : {}),
   };
 
-  // Only set JSON header if body is not FormData
   if (!(options.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
   }
@@ -27,7 +26,7 @@ export async function authFetch(path, options = {}) {
     headers,
   });
 
-  // Access token expired → try refresh
+  // Try refresh ONCE
   if (res.status === 401 && refresh) {
     const refreshRes = await fetch(`${API_BASE}/api/auth/token/refresh/`, {
       method: "POST",
@@ -43,25 +42,14 @@ export async function authFetch(path, options = {}) {
     }
 
     const data = await refreshRes.json();
-
-    access = data.access;
-    if (data.refresh) {
-      localStorage.setItem("refresh", data.refresh);
-    }
-    localStorage.setItem("access", access);
-
-    const retryHeaders = {
-      ...(options.headers || {}),
-      Authorization: `Bearer ${access}`,
-    };
-
-    if (!(options.body instanceof FormData)) {
-      retryHeaders["Content-Type"] = "application/json";
-    }
+    localStorage.setItem("access", data.access);
 
     res = await fetch(url, {
       ...options,
-      headers: retryHeaders,
+      headers: {
+        ...headers,
+        Authorization: `Bearer ${data.access}`,
+      },
     });
   }
 
