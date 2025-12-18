@@ -1,4 +1,3 @@
-// dashboard/walletContext.js
 import React, {
   createContext,
   useCallback,
@@ -22,7 +21,6 @@ export const WalletProvider = ({ children }) => {
   const refreshWallet = useCallback(async () => {
     try {
       setLoading(true);
-
       const res = await authFetch("/api/dashboard-summary/");
       if (!res.ok) {
         resetWallet();
@@ -30,7 +28,6 @@ export const WalletProvider = ({ children }) => {
       }
 
       const data = await res.json();
-
       setWalletBalance(Number(data.wallet) || 0);
       setProfitBalance(Number(data.profit_wallet) || 0);
     } catch (err) {
@@ -41,7 +38,6 @@ export const WalletProvider = ({ children }) => {
     }
   }, []);
 
-  // 🔑 Runs on first load AND after login
   useEffect(() => {
     refreshWallet();
   }, [refreshWallet]);
