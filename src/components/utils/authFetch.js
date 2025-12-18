@@ -2,18 +2,25 @@ import { API_BASE } from "./config";
 
 export async function authFetch(path, options = {}) {
   const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+
   let access = localStorage.getItem("access");
   let refresh = localStorage.getItem("refresh");
 
+  const headers = {
+    ...(options.headers || {}),
+    ...(access ? { Authorization: `Bearer ${access}` } : {}),
+  };
+
+  if (!(options.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
+
   let res = await fetch(url, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-      ...(access ? { Authorization: `Bearer ${access}` } : {}),
-    },
+    headers,
   });
 
+  // Refresh token
   if (res.status === 401 && refresh) {
     const refreshRes = await fetch(`${API_BASE}/api/auth/token/refresh/`, {
       method: "POST",
@@ -28,14 +35,14 @@ export async function authFetch(path, options = {}) {
     }
 
     const data = await refreshRes.json();
-    localStorage.setItem("access", data.access);
+    access = data.access;
+    localStorage.setItem("access", access);
 
     res = await fetch(url, {
       ...options,
       headers: {
-        "Content-Type": "application/json",
-        ...(options.headers || {}),
-        Authorization: `Bearer ${data.access}`,
+        ...headers,
+        Authorization: `Bearer ${access}`,
       },
     });
   }
