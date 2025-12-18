@@ -1,26 +1,17 @@
-import { API_BASE } from "./config";
-
 export async function authFetch(path, options = {}) {
   const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
-
   let access = localStorage.getItem("access");
   let refresh = localStorage.getItem("refresh");
 
-  const headers = {
-    ...(options.headers || {}),
-    ...(access ? { Authorization: `Bearer ${access}` } : {}),
-  };
-
-  if (!(options.body instanceof FormData)) {
-    headers["Content-Type"] = "application/json";
-  }
-
   let res = await fetch(url, {
     ...options,
-    headers,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+      ...(access ? { Authorization: `Bearer ${access}` } : {}),
+    },
   });
 
-  // Refresh token
   if (res.status === 401 && refresh) {
     const refreshRes = await fetch(`${API_BASE}/api/auth/token/refresh/`, {
       method: "POST",
@@ -31,18 +22,18 @@ export async function authFetch(path, options = {}) {
     if (!refreshRes.ok) {
       localStorage.clear();
       window.location.href = "/login";
-      throw new Error("Session expired");
+      return Promise.reject("Session expired");
     }
 
     const data = await refreshRes.json();
-    access = data.access;
-    localStorage.setItem("access", access);
+    localStorage.setItem("access", data.access);
 
     res = await fetch(url, {
       ...options,
       headers: {
-        ...headers,
-        Authorization: `Bearer ${access}`,
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+        Authorization: `Bearer ${data.access}`,
       },
     });
   }

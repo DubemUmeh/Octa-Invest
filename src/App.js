@@ -14,6 +14,7 @@ import ResetPassword from "./components/public/ResetPassword";
 // import "../src/components/styles/global.css"
 
 
+import RequireAuth from "./components/auth/RequireAuth";
 
 import Home from "./components/public/Home";
 import About from "./components/public/About";
@@ -55,19 +56,24 @@ function AppContent() {
             <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
 
           </Route>
+{/* Dashboard Pages (PROTECTED) */}
+<Route
+  element={
+    <RequireAuth>
+      <DashboardLayout />
+    </RequireAuth>
+  }
+>
+  <Route path="/transactions" element={<Transactions />} />
+  <Route path="/dashboard" element={<Dashboard />} />
+  <Route path="/dashboard/plans" element={<Plans />} />
+  <Route path="/dashboard/investments" element={<Investments />} />
+  <Route path="/dashboard/deposit" element={<Deposit />} />
+  <Route path="/dashboard/withdraw" element={<Withdraw />} />
+  <Route path="/dashboard/profile" element={<Profile />} />
+  <Route path="/dashboard/settings" element={<Settings />} />
+</Route>
 
-          {/* Dashboard Pages */}
-          <Route element={<DashboardLayout />}>
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/dashboard/plans" element={<Plans />} />
-            <Route path="/dashboard/investments" element={<Investments />} />
-            <Route path="/dashboard/deposit" element={<Deposit />} />
-            <Route path="/dashboard/withdraw" element={<Withdraw />} />
-            <Route path="/dashboard/profile" element={<Profile />} />
-            {/* <Route path="/dashboard/referral" element={<Referral />} /> */}
-            <Route path="/dashboard/settings" element={<Settings />} />
-          </Route>
         </Routes>
         </TransactionProvider>
         </NotificationProvider>
