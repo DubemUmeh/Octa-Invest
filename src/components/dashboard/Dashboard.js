@@ -1,6 +1,6 @@
-// Dashboard.js (replace your useEffect with this)
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import CountUp from "react-countup";
 import { authFetch } from "../utils/authFetch";
 import "../styles/dashboard.css";
@@ -8,7 +8,6 @@ import "../styles/dashboard.css";
 const parseMoney = (v) => {
   if (v === null || v === undefined) return 0;
   if (typeof v === "string") {
-    // remove commas, $ signs, etc and parse
     const n = parseFloat(v.replace(/[^0-9.-]+/g, ""));
     return isNaN(n) ? 0 : n;
   }
@@ -17,7 +16,6 @@ const parseMoney = (v) => {
 };
 
 const Dashboard = () => {
-  // const [transactions, setTransactions] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [stats, setStats] = useState({
     deposits: 0,
@@ -25,36 +23,50 @@ const Dashboard = () => {
     investments: 0,
     earnings: 0,
   });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
       try {
-        // IMPORTANT: use a relative path so authFetch will prepend API_BASE in production
+        setLoading(true);
+        setError(null);
+        
         const res = await authFetch("/api/dashboard-summary/");
 
         if (!res.ok) {
-          console.error("❌ Unauthorized or failed fetch", res.status);
-          return;
+          if (res.status === 401) {
+            // Unauthorized - redirect to login
+            navigate("/login");
+            return;
+          }
+          throw new Error(`Failed to load dashboard: ${res.status}`);
         }
 
         const data = await res.json();
 
-        // setTransactions(Array.isArray(data.recent) ? data.recent : []);
-        setTransactions([]); // backend doesn't send recent yet
-
-setStats({
-  deposits: parseMoney(data.balance),
-  withdrawals: 0,
-  investments: parseMoney(data.total_invested),
-  earnings: 0,
-});
-
+        setTransactions(Array.isArray(data.recent) ? data.recent : []);
+        setStats({
+          deposits: parseMoney(data.total_deposits),
+          withdrawals: parseMoney(data.total_withdrawals),
+          investments: parseMoney(data.total_investments),
+          earnings: parseMoney(data.total_earnings),
+        });
       } catch (e) {
         console.error("Failed to load dashboard", e);
+        setError(e.message);
+        
+        // If authentication error, redirect to login
+        if (e.message.includes("authentication") || e.message.includes("Session expired")) {
+          setTimeout(() => navigate("/login"), 2000);
+        }
+      } finally {
+        setLoading(false);
       }
     };
     load();
-  }, []);
+  }, [navigate]);
 
   const displayType = (t) =>
     t.type ? t.type.charAt(0).toUpperCase() + t.type.slice(1) : "-";
@@ -74,18 +86,32 @@ setStats({
     }
   };
 
-  /*
-  
-              // transactions.map((t, i) => (
-              //   <tr key={i} className="block md:table-row">
-              //     <td className="block md:table-cell"><span className="font-semibold md:hidden">{displayDate(t)}</span></td>
-              //     <td className="block md:table-cell"><span className="font-semibold md:hidden">{displayType(t)}</span></td>
-              //     <td className="block md:table-cell"><span className="font-semibold md:hidden">${(parseFloat(t.amount) || 0).toFixed(2)}</span></td>
-              //     <td className="block md:table-cell"><span className="font-semibold md:hidden">{displayMethod(t)}</span></td>
-              //     <td className="block md:table-cell"><span className="font-semibold md:hidden">{t.status ? t.status.charAt(0).toUpperCase() + t.status.slice(1) : "-"}</span></td>
-              //   </tr>
-              // ))
-  */
+  if (loading) {
+    return (
+      <div className="dashboard-page">
+        <div style={{ textAlign: "center", padding: "3rem" }}>
+          <div className="spinner"></div>
+          <p style={{ marginTop: "1rem" }}>Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard-page">
+        <div style={{ textAlign: "center", padding: "3rem" }}>
+          <p style={{ color: "#ef4444" }}>Error: {error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            style={{ marginTop: "1rem", padding: "0.5rem 1rem" }}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-page">
