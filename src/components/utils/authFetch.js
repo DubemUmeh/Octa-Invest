@@ -10,10 +10,8 @@ export async function authFetch(path, options = {}) {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
-  const response = await fetch(url, {
+  return fetch(url, {
     ...options,
     headers,
   });
-
-  return response;
 }
